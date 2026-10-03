@@ -39,6 +39,8 @@ Visit [http://localhost:3001](http://localhost:3001) in your browser.
 
 ## Documentation
 
-- **[AGENTS.md](./AGENTS.md):** Architectural guide and onboarding instructions for AI agents and developers.
-- **[PROJECT_PLAN_AND_SPRINTS.md](./PROJECT_PLAN_AND_SPRINTS.md):** Complete 12-sprint delivery roadmap, data models, and risk register.
-- **[AI_Workflow_SaaS_Implementation_Guide.pdf](./AI_Workflow_SaaS_Implementation_Guide.pdf):** Original architectural specification blueprint.
+The project's architectural standards, execution tracking, and product blueprints are consolidated under the [`docs/`](./docs/) directory into **Three Canonical Sources of Truth**:
+
+- **[`docs/AI_Workflow_SaaS_Implementation_Guide.pdf`](./docs/AI_Workflow_SaaS_Implementation_Guide.pdf):** Master product & engineering blueprint (the immutable reference specification).
+- **[`docs/AGENTS.md`](./docs/AGENTS.md):** Operating and educational standard for developers and AI agents, defining coding guidelines, architectural invariants, git policies, and the "teach-as-you-build" verification protocol.
+- **[`docs/CHECKLIST.md`](./docs/CHECKLIST.md):** Complete master architecture, database schema, end-to-end system flow diagrams, and granular full-stack `Sprint -> Module -> Feature` execution tracker.
