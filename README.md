@@ -41,6 +41,6 @@ Visit [http://localhost:3001](http://localhost:3001) in your browser.
 
 The project's architectural standards, execution tracking, and product blueprints are consolidated under the [`docs/`](./docs/) directory into **Three Canonical Sources of Truth**:
 
-- **[`docs/AI_Workflow_SaaS_Implementation_Guide.pdf`](./docs/AI_Workflow_SaaS_Implementation_Guide.pdf):** Master product & engineering blueprint (the immutable reference specification).
+- **[`docs/AI_Workflow_SaaS_Implementation_Guide_v4.pdf`](./docs/AI_Workflow_SaaS_Implementation_Guide_v4.pdf):** Master product & engineering blueprint (Version 4.0, the immutable reference specification).
 - **[`docs/AGENTS.md`](./docs/AGENTS.md):** Operating and educational standard for developers and AI agents, defining coding guidelines, architectural invariants, git policies, and the "teach-as-you-build" verification protocol.
 - **[`docs/CHECKLIST.md`](./docs/CHECKLIST.md):** Complete master architecture, database schema, end-to-end system flow diagrams, and granular full-stack `Sprint -> Module -> Feature` execution tracker.

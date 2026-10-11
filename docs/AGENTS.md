@@ -6,16 +6,18 @@ Welcome to **Virobyte SaaS**. This document is the authoritative rulebook and op
 
 ## 1. System Mission & The Three Sources of Truth
 
-**Virobyte SaaS** is an AI-powered workflow automation platform designed for local service businesses (initial niche: **single-location cleaning companies**). It eliminates missed inquiries, automates scheduling without double-booking, syncs records to spreadsheets and calendars, and routes exceptions to staff.
+**Virobyte SaaS** is an AI-powered request-to-resolution workflow automation platform designed for small and midsize teams (initial candidate segments: **device repair shops** and **quote-driven service firms**). Working descriptor: *AI Workflow SaaS - Request to Resolution*.
+
+Its primary object is the **work item** (not a chat thread or a calendar booking). It can represent a sales inquiry, quote request, repair intake, onboarding checklist, service case, or internal approval. The core product promise: **every incoming request becomes tracked work with an owner, a due date, and visible completion evidence. Supported routine steps run automatically; exceptions go to humans with full context.**
 
 ### The Canonical Three Sources of Truth
 The entire project is governed by exactly **three non-overlapping documents**:
 
 | Document | Authority Level | Primary Role |
 | :--- | :--- | :--- |
-| **1. Master Blueprint:** [`AI_Workflow_SaaS_Implementation_Guide.pdf`](file:///c:/Users/Admin/OneDrive/Desktop/virobyte-saas/docs/AI_Workflow_SaaS_Implementation_Guide.pdf) | **Immutable Truth** | The 33-page, 31-section product and engineering specification. All architectural choices, database structures, provider requirements, and business rules derive from here. |
+| **1. Master Blueprint:** [`AI_Workflow_SaaS_Implementation_Guide_v4.pdf`](file:///c:/Users/Admin/OneDrive/Desktop/virobyte-saas/docs/AI_Workflow_SaaS_Implementation_Guide_v4.pdf) | **Immutable Truth** | The 33-page, 31-section product and engineering specification (Version 4.0, 10 October 2026). All architectural choices, database structures, provider requirements, and business rules derive from here. |
 | **2. Operating Standard:** [`AGENTS.md`](file:///c:/Users/Admin/OneDrive/Desktop/virobyte-saas/docs/AGENTS.md) *(This file)* | **Governance & Rules** | Non-negotiable coding guidelines, behavioral standards, architectural invariants, git policies, and teaching/verification requirements. |
-| **3. Execution Checklist:** [`CHECKLIST.md`](file:///c:/Users/Admin/OneDrive/Desktop/virobyte-saas/docs/CHECKLIST.md) | **Active Progress Tracker** | The complete breakdown of architecture, schema, external integrations, and granular `Sprint -> Module -> Specific Feature` recipes with full-stack implementation details and checkable gates. |
+| **3. Execution Checklist:** [`CHECKLIST.md`](file:///c:/Users/Admin/OneDrive/Desktop/virobyte-saas/docs/CHECKLIST.md) | **Active Progress Tracker** | The complete breakdown of architecture, schema, role interaction diagrams, external integrations, and granular `Sprint -> Module -> Specific Feature` recipes with full-stack implementation details and checkable gates. |
 
 ---
 
@@ -73,27 +75,30 @@ To prevent overcomplication, hallucination, and bloated code, every contributor 
 
 These invariants are non-negotiable and must be preserved across every feature implementation:
 
-### 1. Bounded Intelligence
+### 1. Bounded Intelligence & Completion Contracts
 > [!IMPORTANT]
 > **AI interprets unstructured text; deterministic code executes state changes.**
-> - **Generative AI** is used *strictly* for text extraction (customer name, requested service, area, requested times) and drafting polite replies within approved knowledge.
-> - **Ordinary deterministic code** executes pricing calculations, calendar free/busy queries, PostgreSQL interval locking, and external API writes.
-> - AI models are **never** granted permission to execute arbitrary code, invent prices, or override business policies.
+> - **Generative AI** is used *strictly* for entity extraction (customer name, inquiry details, requested fields in English, Roman Urdu, and Urdu script), intent classification, and drafting polite replies within approved knowledge.
+> - **Ordinary deterministic code** executes state transitions, deadline calculations, timer scheduling, authorization, and external API writes.
+> - A completion event requires **verifiable evidence** (operator-confirmed qualification, customer decision, or provider-confirmed ticket). AI models can **never** grant permissions, invent completion events, or override business policies.
 
 ### 2. PostgreSQL as the Authoritative Source of Truth
-- The internal PostgreSQL database is the single durable record of business state.
-- External tools (**Google Sheets**, **Google Calendar**) are outward mirrors. A failure to mirror to Google Sheets must never invalidate or duplicate a confirmed lead or booking in PostgreSQL.
+- The internal PostgreSQL database is the single durable record of business state, work items, and the **evidence ledger** (`evidence_events`, `action_receipts`).
+- External tools (**Google Sheets**, **Google Calendar**, CRMs) are optional secondary adapters released only on paid customer demand. A failure in an external mirror must never invalidate or duplicate a work item or action in PostgreSQL.
 
-### 3. Monetary Representation in Minor Units
-- All currency values are stored as **positive integer cents / minor units** (e.g., `$140.00` is stored as `14000`, never `140` or `140.00`). Floating-point math for money is strictly prohibited.
+### 3. Monetary Representation in Minor Units (USD & PKR)
+- All currency values are stored as **positive integer minor units** with explicit currency codes:
+  - Global Tier: `$299.00` = `29900` USD cents.
+  - Local Tier: `PKR 12,000` = `1200000` PKR paisa / minor units.
+- Floating-point arithmetic for financial calculations is strictly prohibited.
 
 ### 4. Strict Multi-Tenancy & Row-Level Security (RLS)
 - Every query, worker job, API endpoint, file lookup, and audit log must be explicitly scoped by `org_id`.
 - Tenant A must never be able to read, mutate, or trigger background processing for Tenant B.
 
-### 5. Transactional Outbox & Idempotency
-- Inbound webhooks must persist the incoming event and an outbox queue record in a single atomic database transaction before responding with HTTP `200 OK`.
-- All external mutations must generate an `action_receipt` with an idempotency key to guarantee at-most-once execution across retries.
+### 5. Transactional Outbox, Idempotency & Action Receipts
+- Inbound webhooks must persist the incoming event and an outbox queue record in a single atomic database transaction before responding with HTTP `200 OK` (< 2 seconds).
+- All external mutations must generate an `action_receipt` with an idempotency key derived from `(org_id, operation_key)` to guarantee at-most-once execution across retries.
 
 ---
 
@@ -110,11 +115,13 @@ The user interface uses **React 19 + TypeScript + Vite** (running on port **3001
 - **Strict UI Constraints:**
   - **NO purple shades or violet tints.**
   - **NO gaudy gradients or flashy neon accents.**
-  - **NO cluttered multi-tab menus.** The primary dashboard is kept strictly to **4 clear, essential sections**:
-    1. `Overview`: High-level outcomes (*Leads Captured*, *Bookings Confirmed*, *Hours Saved*) & 3-step automation diagram.
-    2. `WhatsApp Simulator`: High-fidelity phone preview to test inbound messages, inspect AI extraction, and verify ledger actions.
-    3. `Services & Pricing`: Service catalog (with prices in minor integer units) and booking rules.
-    4. `Connected Accounts`: Integration cards for WhatsApp, Google Calendar, and Google Sheets with live status.
+  - **NO cluttered multi-tab menus.**
+- **The Five Primary Product Views (Blueprint Section 10):**
+  1. `Work queue`: Overdue, unassigned, and blocked work displayed first.
+  2. `Item timeline`: Chronological history, source messages, evidence, and next scheduled action.
+  3. `Approvals and exceptions`: Pending human actions, takeover controls, and resolution forms.
+  4. `Connections`: Channel health (WhatsApp), verification state, and optional adapters.
+  5. `Results and usage`: Weekly outcome report, net time saved, ledger evidence, and usage budget.
 - **Dev Server Port Invariant:** The Vite dev server is locked to **port 3001** (`http://localhost:3001/`). Keep this port configuration intact.
 
 ---
@@ -131,7 +138,7 @@ To ensure the project stays on course, every developer and agent must defend aga
    - Phases 3 to 7 (Pilots, Self-Service, Platform Expansion) are documented as milestone-gated summaries. We do not write speculative code for Phase 7 before Phase 2 generates revenue.
 3. **Defense Against Trap 3 (Premature Monorepo Re-write):**
    - We do not blow up the existing working Vite application to fight build configuration tooling.
-   - We deliver the **W1 vertical slice** (Webhook $\rightarrow$ Outbox $\rightarrow$ Database $\rightarrow$ Sheets) with the simplest working scaffolding first.
+   - We deliver the **W1 vertical slice** (Webhook $\rightarrow$ Outbox $\rightarrow$ Database $\rightarrow$ Work Item) with the simplest working scaffolding first.
 
 ---
 
@@ -150,7 +157,7 @@ flowchart LR
 ```
 
 1. **Inspect Progress:** Read [`CHECKLIST.md`](file:///c:/Users/Admin/OneDrive/Desktop/virobyte-saas/docs/CHECKLIST.md) to locate the current active sprint and next incomplete feature (`[ ]` or `[-]`).
-2. **Verify Specifications:** Cross-check the feature requirements in [`CHECKLIST.md`](file:///c:/Users/Admin/OneDrive/Desktop/virobyte-saas/docs/CHECKLIST.md), the architectural invariants and read the complete instructions in [`AGENTS.md`](file:///c:/Users/Admin/OneDrive/Desktop/virobyte-saas/docs/AGENTS.md), and the master specifications in [`AI_Workflow_SaaS_Implementation_Guide.pdf`](file:///c:/Users/Admin/OneDrive/Desktop/virobyte-saas/docs/AI_Workflow_SaaS_Implementation_Guide.pdf).
+2. **Verify Specifications:** Cross-check the feature requirements in [`CHECKLIST.md`](file:///c:/Users/Admin/OneDrive/Desktop/virobyte-saas/docs/CHECKLIST.md), the architectural invariants and read the complete instructions in [`AGENTS.md`](file:///c:/Users/Admin/OneDrive/Desktop/virobyte-saas/docs/AGENTS.md), and the master specifications in [`AI_Workflow_SaaS_Implementation_Guide_v4.pdf`](file:///c:/Users/Admin/OneDrive/Desktop/virobyte-saas/docs/AI_Workflow_SaaS_Implementation_Guide_v4.pdf).
 3. **Surgical Implementation:** Implement that single feature completely across its required stack (Frontend, Backend, API, Database) without touching unrelated code.
 4. **Compile & Build Test:** Execute `npm run build` to confirm zero TypeScript compilation or lint errors.
 5. **Update Status:** Update [`CHECKLIST.md`](file:///c:/Users/Admin/OneDrive/Desktop/virobyte-saas/docs/CHECKLIST.md) to mark the completed feature as `[x] Done`.
